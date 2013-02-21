@@ -11,9 +11,10 @@ my @ignoreformats = qw(tmpfs sysfs devtmpfs devpts proc binfmt_misc
                        fusectl fuse.gvfsd-fuse fuse.vmware-vmblock
                        debugfs securityfs swap);
 
-my $color_ok   = "#78af78";
-my $color_warn = "#ffff00";
-my $color_crit = "#ff0000";
+my $color_ok      = "#78af78";
+my $color_warn    = "#ffff00";
+my $color_crit    = "#ff0000";
+my $color_unknown = "#ffa500";
 
 
 # check_mk based magic df kungfu
@@ -109,9 +110,56 @@ for (my $i = 0; $i < $diskcount; $i++) {
 
 # mdstat
 open my $fh, "<", "/proc/mdstat";
-local $/ = undef; # slurp
-my $mdstat = <$fh>;
-print $mdstat;
+my $md_current;
+my $md_current_state;
+my $md_current_mdstat;
+
+sub print_md_current_state {
+  if (defined $md_current) {
+    my $color = $color_ok;
+    my $print_mdstat = 0;
+
+    if ($md_current_state =~ /^\[(\d+)\/(\d+)\]\s+\[([U_]+)\]$/xsm) {
+      my $should = $1;
+      my $are    = $2;
+      my $states = $3;
+
+      if ($are < $should) {
+        $color = $color_crit;
+        $print_mdstat = 1;
+      }
+    } else {
+      $color = $color_unknown;
+    }
+
+    printf "  \${color #98c2c7}%s\$color \${color $color}%s\$color\n",
+      "/dev/$md_current", $md_current_state;
+    if ($print_mdstat) {
+      printf "\${color $color}%s\$color\n",
+        $md_current_mdstat;
+    }
+  }
+}
+
+while (my $line = <$fh>) {
+  next if $line =~ /^Personalities\s*:/xsmi;
+  next if $line =~ /^unused\sdevices\s*:/xsmi;
+
+  if ($line =~ /^(.*) : /) {
+    print_md_current_state();
+
+    $md_current = $1;
+    $md_current_state = undef;
+    $md_current_mdstat = undef;
+  }
+
+  if ($line =~ /^\s*\d+\s+blocks(?: super [0-9.]+)? (.*)$/) {
+    $md_current_state = $1;
+  }
+
+  $md_current_mdstat .= $line;
+}
 close $fh;
+print_md_current_state();
 
 # vim:textwidth=120:
