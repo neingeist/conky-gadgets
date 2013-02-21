@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Carp;
+
+use Sys::Filesystem ();
+use Filesys::Df qw(df);
+use IO::Socket;
+
+my @ignoreformats = qw(tmpfs sysfs devtmpfs devpts proc binfmt_misc
+                       fusectl fuse.gvfsd-fuse fuse.vmware-vmblock
+                       debugfs securityfs swap);
+
+my $color_ok   = "#78af78";
+my $color_warn = "#ffff00";
+my $color_crit = "#ff0000";
+
+
+# check_mk based magic df kungfu
+sub magic_level {
+  my ($level, $size) = @_;
+
+  my $normsize = 20.0; # GB
+  my $exp = 0.6;
+
+  my $hgb_size = $size / $normsize;
+  my $felt_size = $hgb_size ** $exp;
+  my $scale = $felt_size / $hgb_size;
+  my $new_level = 1 - ((1 - $level) * $scale);
+  if ($new_level < 0.6) {
+    $new_level = 0.6;
+  }
+
+  return $new_level;
+}
+
+my $fs = Sys::Filesystem->new();
+my @filesystems = $fs->filesystems();
+
+# determine longest mount point path
+my $mlength = 5;
+for my $f (@filesystems) {
+  my $mount_point = $fs->mount_point($f);
+
+  if (length($mount_point) > $mlength) {
+    $mlength = length($mount_point);
+  }
+}
+
+for my $f (@filesystems) {
+  my $mount_point = $fs->mount_point($f);
+  my $format= $fs->format($f);
+
+  next if grep { /^$format$/xsm } @ignoreformats;
+
+  my $df   = df($mount_point, 1024); # 1k blocks
+  my $size = $df->{blocks}/(1024*1024);
+
+  my $level_warn = magic_level(0.80, $size) * 100;
+  my $level_crit = magic_level(0.90, $size) * 100;
+
+  # color depends on used percent
+  my $color = $color_ok;
+  if ($df->{per} >= $level_warn) {
+    $color = $color_warn;
+  }
+  if ($df->{per} >= $level_crit) {
+    $color = $color_crit;
+  }
+
+  printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% (%2.f/%2.f) %6.2fGB \${color $color}\${fs_bar 6 %s}\$color\n",
+    $mount_point,
+    100 - $df->{per},
+    100 - $level_warn, 100 - $level_crit,
+    $df->{bfree}/(1024*1024),
+    $mount_point
+  );
+}
+
+# hddtemp
+my $socket=IO::Socket::INET->new(
+  PeerAddr => 'localhost', PeerPort=> 7634,
+  Proto => 'tcp', Type => $IO::Socket::SOCK_STREAM)
+  or croak "Can't talk to hddtemp";
+my $hddtemp_output = <$socket>;
+close $socket;
+
+my @hddtemp_output = split /[|]/x, $hddtemp_output;
+my $diskcount = $#hddtemp_output/5;
+for (my $i = 0; $i < $diskcount; $i++) {
+  my $dev   = $hddtemp_output[$i*5+1];
+  my $temp  = $hddtemp_output[$i*5+3];
+  my $unit  = $hddtemp_output[$i*5+4];
+  printf "  %s %02.f°%s\n", $dev, $temp, $unit;
+}
+
+# vim:textwidth=120:
