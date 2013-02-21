@@ -94,4 +94,11 @@ for (my $i = 0; $i < $diskcount; $i++) {
   printf "  %s %02.f°%s\n", $dev, $temp, $unit;
 }
 
+# mdstat
+open my $fh, "<", "/proc/mdstat";
+local $/ = undef; # slurp
+my $mdstat = <$fh>;
+print $mdstat;
+close $fh;
+
 # vim:textwidth=120:
