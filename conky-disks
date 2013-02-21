@@ -78,6 +78,10 @@ for my $f (@filesystems) {
 }
 
 # hddtemp
+
+my $color_toocold = "#0000ff";
+my $color_toohot  = "#ff0000";
+
 my $socket=IO::Socket::INET->new(
   PeerAddr => 'localhost', PeerPort=> 7634,
   Proto => 'tcp', Type => $IO::Socket::SOCK_STREAM)
@@ -91,7 +95,16 @@ for (my $i = 0; $i < $diskcount; $i++) {
   my $dev   = $hddtemp_output[$i*5+1];
   my $temp  = $hddtemp_output[$i*5+3];
   my $unit  = $hddtemp_output[$i*5+4];
-  printf "  %s %02.f°%s\n", $dev, $temp, $unit;
+
+  my $color = $color_ok;
+  if ($temp > 40) {
+    $color = $color_toohot;
+  } elsif ($temp < 25) {
+    $color = $color_toocold;
+  }
+
+  printf "  \${color #98c2c7}%s\$color ", $dev;
+  printf "\${color $color}%02.f°%s\$color\n", $temp, $unit;
 }
 
 # mdstat
