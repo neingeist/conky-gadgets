@@ -28,8 +28,8 @@ sub magic_level {
   my $felt_size = $hgb_size ** $exp;
   my $scale = $felt_size / $hgb_size;
   my $new_level = 1 - ((1 - $level) * $scale);
-  if ($new_level < 0.6) {
-    $new_level = 0.6;
+  if ($new_level < 0.8) {
+    $new_level = 0.8;
   }
 
   return $new_level;
