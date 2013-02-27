@@ -69,10 +69,9 @@ for my $f (@filesystems) {
     $color = $color_crit;
   }
 
-  printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% (%2.f/%2.f) %6.2fGB \${color $color}\${fs_bar 6 %s}\$color\n",
+  printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% %6.1fGB \${color $color}\${fs_bar 6 %s}\$color\n",
     $mount_point,
     100 - $df->{per},
-    100 - $level_warn, 100 - $level_crit,
     $df->{bfree}/(1024*1024),
     $mount_point
   );
