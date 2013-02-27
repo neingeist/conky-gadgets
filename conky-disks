@@ -134,7 +134,7 @@ sub print_md_current_state {
     printf "  \${color #98c2c7}%s\$color \${color $color}%s\$color\n",
       "/dev/$md_current", $md_current_state;
     if ($print_mdstat) {
-      printf "\${color $color}%s\$color\n",
+      printf "\n\${color $color}%s\$color",
         $md_current_mdstat;
     }
   }
