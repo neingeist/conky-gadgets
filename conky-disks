@@ -55,24 +55,30 @@ for my $f (@filesystems) {
   next if grep { /^$format$/xsm } @ignoreformats;
 
   my $df   = df($mount_point, 1024); # 1k blocks
-  my $size = $df->{blocks}/(1024*1024);
+  my $blocks = $df->{blocks};
+  if (!defined($blocks)) { $blocks = 1 };
+  my $size = $blocks/(1024*1024);
 
   my $level_warn = magic_level(0.80, $size) * 100;
   my $level_crit = magic_level(0.90, $size) * 100;
 
   # color depends on used percent
   my $color = $color_ok;
-  if ($df->{per} >= $level_warn) {
+  my $per = $df->{per};
+  if (!defined($per)) { $per = 100 };
+  if ($per >= $level_warn) {
     $color = $color_warn;
   }
-  if ($df->{per} >= $level_crit) {
+  if ($per >= $level_crit) {
     $color = $color_crit;
   }
+  my $bfree = $df->{bfree};
+  if (!defined($bfree)) { $bfree = 0 };
 
   printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% %6.1fGB \${color $color}\${fs_bar 6 %s}\$color\n",
     $mount_point,
-    100 - $df->{per},
-    $df->{bfree}/(1024*1024),
+    100 - $per,
+    $bfree/(1024*1024),
     $mount_point
   );
 }
