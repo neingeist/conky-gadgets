@@ -7,9 +7,11 @@ use Sys::Filesystem ();
 use Filesys::Df qw(df);
 use IO::Socket;
 
-my @ignoreformats = qw(tmpfs sysfs devtmpfs devpts proc binfmt_misc
+my @ignoreformats = qw(
+                       tmpfs sysfs devtmpfs devpts proc binfmt_misc
                        fusectl fuse.gvfsd-fuse fuse.vmware-vmblock
-                       debugfs securityfs swap iso9660 udf);
+                       debugfs securityfs swap iso9660 udf cgroup
+                      );
 
 my $color_ok      = "#78af78";
 my $color_warn    = "#ffff00";
@@ -50,7 +52,7 @@ for my $f (@filesystems) {
 
 for my $f (@filesystems) {
   my $mount_point = $fs->mount_point($f);
-  my $format= $fs->format($f);
+  my $format = $fs->format($f);
 
   next if grep { /^$format$/xsm } @ignoreformats;
 
