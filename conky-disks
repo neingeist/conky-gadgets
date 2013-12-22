@@ -11,6 +11,7 @@ my @ignoreformats = qw(
                        tmpfs sysfs devtmpfs devpts proc binfmt_misc
                        fusectl fuse.gvfsd-fuse fuse.vmware-vmblock
                        debugfs securityfs swap iso9660 udf cgroup
+                       hugetlbfs mqueue pstore selinuxfs configfs
                       );
 
 my $color_ok      = "#78af78";
