@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+use v5.10;
+use strict;
+use warnings;
+use Carp;
+
+use Sort::Versions qw(versioncmp);
+
+my $color_header  = "#ffcb48";
+my $color_ok      = "#78af78";
+my $color_warn    = "#ffff00";
+
+sub booted_kernel {
+  my $booted_kernel = `uname -r`;
+  chomp($booted_kernel);
+
+  return $booted_kernel;
+}
+
+sub installed_kernels {
+  my $installed_kernels = `rpm --query --queryformat='%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel`;
+  chomp($installed_kernels);
+  my @installed_kernels = split /\n/s, $installed_kernels;
+
+  return @installed_kernels;
+}
+
+sub latest_installed_kernel {
+  my @installed_kernels = sort { versioncmp($b, $a) } installed_kernels();
+  my $latest_installed_kernel = $installed_kernels[0];
+
+  return $latest_installed_kernel;
+}
+
+my $booted_kernel = booted_kernel();
+my $latest_installed_kernel = latest_installed_kernel();
+
+if ($booted_kernel ne $latest_installed_kernel) {
+  say "\$\{color $color_header\}KERNEL\$color";
+  say "  \$\{color $color_warn\}REBOOT INTO $latest_installed_kernel\$color";
+}
