@@ -39,137 +39,144 @@ sub magic_level {
   return $new_level;
 }
 
-my $fs = Sys::Filesystem->new();
-my @filesystems = $fs->filesystems();
+sub conky_fs {
+  my $fs = Sys::Filesystem->new();
+  my @filesystems = $fs->filesystems();
 
-# determine longest mount point path
-my $mlength = 5;
-for my $f (@filesystems) {
-  my $mount_point = $fs->mount_point($f);
+  # determine longest mount point path
+  my $mlength = 5;
+  for my $f (@filesystems) {
+    my $mount_point = $fs->mount_point($f);
 
-  if (length($mount_point) > $mlength) {
-    $mlength = length($mount_point);
-  }
-}
-
-for my $f (@filesystems) {
-  my $mount_point = $fs->mount_point($f);
-  my $format = $fs->format($f);
-
-  next if grep { /^$format$/xsm } @ignoreformats;
-  next if grep { $mount_point =~ $_ } @ignorepaths;
-
-  my $df   = df($mount_point, 1024); # 1k blocks
-  my $blocks = $df->{blocks};
-  if (!defined($blocks)) { $blocks = 1 };
-  my $size = $blocks/(1024*1024);
-
-  my $level_warn = magic_level(0.80, $size) * 100;
-  my $level_crit = magic_level(0.90, $size) * 100;
-
-  # color depends on used percent
-  my $color = $color_ok;
-  my $per = $df->{per};
-  if (!defined($per)) { $per = 100 };
-  if ($per >= $level_warn) {
-    $color = $color_warn;
-  }
-  if ($per >= $level_crit) {
-    $color = $color_crit;
-  }
-  my $bfree = $df->{bfree};
-  if (!defined($bfree)) { $bfree = 0 };
-
-  printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% %6.1fGB \${color $color}\${fs_bar 6 %s}\$color\n",
-    $mount_point,
-    100 - $per,
-    $bfree/(1024*1024),
-    $mount_point
-  );
-}
-
-# hddtemp
-
-my $color_toocold = "#0000ff";
-my $color_toohot  = "#ff0000";
-
-my $socket=IO::Socket::INET->new(
-  PeerAddr => 'localhost', PeerPort=> 7634,
-  Proto => 'tcp', Type => $IO::Socket::SOCK_STREAM)
-  or croak "Can't talk to hddtemp";
-my $hddtemp_output = <$socket>;
-close $socket;
-
-my @hddtemp_output = split /[|]/x, $hddtemp_output;
-my $diskcount = $#hddtemp_output/5;
-for (my $i = 0; $i < $diskcount; $i++) {
-  my $dev   = $hddtemp_output[$i*5+1];
-  my $temp  = $hddtemp_output[$i*5+3];
-  my $unit  = $hddtemp_output[$i*5+4];
-
-  my $color = $color_ok;
-  if ($temp > 40) {
-    $color = $color_toohot;
-  } elsif ($temp < 25) {
-    $color = $color_toocold;
+    if (length($mount_point) > $mlength) {
+      $mlength = length($mount_point);
+    }
   }
 
-  printf "  \${color #98c2c7}%s\$color ", $dev;
-  printf "\${color $color}%02.f°%s\$color\n", $temp, $unit;
-}
+  for my $f (@filesystems) {
+    my $mount_point = $fs->mount_point($f);
+    my $format = $fs->format($f);
 
-# mdstat
-open my $fh, "<", "/proc/mdstat";
-my $md_current;
-my $md_current_state;
-my $md_current_mdstat;
+    next if grep { /^$format$/xsm } @ignoreformats;
+    next if grep { $mount_point =~ $_ } @ignorepaths;
 
-sub print_md_current_state {
-  if (defined $md_current) {
+    my $df   = df($mount_point, 1024); # 1k blocks
+    my $blocks = $df->{blocks};
+    if (!defined($blocks)) { $blocks = 1 };
+    my $size = $blocks/(1024*1024);
+
+    my $level_warn = magic_level(0.80, $size) * 100;
+    my $level_crit = magic_level(0.90, $size) * 100;
+
+    # color depends on used percent
     my $color = $color_ok;
-    my $print_mdstat = 0;
+    my $per = $df->{per};
+    if (!defined($per)) { $per = 100 };
+    if ($per >= $level_warn) {
+      $color = $color_warn;
+    }
+    if ($per >= $level_crit) {
+      $color = $color_crit;
+    }
+    my $bfree = $df->{bfree};
+    if (!defined($bfree)) { $bfree = 0 };
 
-    if ($md_current_state =~ /^\[(\d+)\/(\d+)\]\s+\[([U_]+)\]$/xsm) {
-      my $should = $1;
-      my $are    = $2;
-      my $states = $3;
+    printf("  \${color #98c2c7}%-${mlength}s\$color %2.f%% %6.1fGB \${color $color}\${fs_bar 6 %s}\$color\n",
+      $mount_point,
+      100 - $per,
+      $bfree/(1024*1024),
+      $mount_point
+    );
+  }
+}
 
-      if ($are < $should) {
-        $color = $color_crit;
-        $print_mdstat = 1;
+sub conky_hddtemp {
+  my $color_toocold = "#0000ff";
+  my $color_toohot  = "#ff0000";
+
+  my $socket=IO::Socket::INET->new(
+    PeerAddr => 'localhost', PeerPort=> 7634,
+    Proto => 'tcp', Type => $IO::Socket::SOCK_STREAM)
+    or croak "Can't talk to hddtemp";
+  my $hddtemp_output = <$socket>;
+  close $socket;
+
+  my @hddtemp_output = split /[|]/x, $hddtemp_output;
+  my $diskcount = $#hddtemp_output/5;
+  for (my $i = 0; $i < $diskcount; $i++) {
+    my $dev   = $hddtemp_output[$i*5+1];
+    my $temp  = $hddtemp_output[$i*5+3];
+    my $unit  = $hddtemp_output[$i*5+4];
+
+    my $color = $color_ok;
+    if ($temp > 40) {
+      $color = $color_toohot;
+    } elsif ($temp < 25) {
+      $color = $color_toocold;
+    }
+
+    printf "  \${color #98c2c7}%s\$color ", $dev;
+    printf "\${color $color}%02.f°%s\$color\n", $temp, $unit;
+  }
+}
+
+sub conky_mdstat {
+  open my $fh, "<", "/proc/mdstat";
+  my $md_current;
+  my $md_current_state;
+  my $md_current_mdstat;
+
+  my $print_md_current_state = sub {
+    if (defined $md_current) {
+      my $color = $color_ok;
+      my $print_mdstat = 0;
+
+      if ($md_current_state =~ /^\[(\d+)\/(\d+)\]\s+\[([U_]+)\]$/xsm) {
+        my $should = $1;
+        my $are    = $2;
+        my $states = $3;
+
+        if ($are < $should) {
+          $color = $color_crit;
+          $print_mdstat = 1;
+        }
+      } else {
+        $color = $color_unknown;
       }
-    } else {
-      $color = $color_unknown;
+
+      printf "  \${color #98c2c7}%s\$color \${color $color}%s\$color\n",
+        "/dev/$md_current", $md_current_state;
+      if ($print_mdstat) {
+        printf "\n\${color $color}%s\$color",
+          $md_current_mdstat;
+      }
+    }
+  };
+
+  while (my $line = <$fh>) {
+    next if $line =~ /^Personalities\s*:/xsmi;
+    next if $line =~ /^unused\sdevices\s*:/xsmi;
+
+    if ($line =~ /^(.*) : /) {
+      &$print_md_current_state();
+
+      $md_current = $1;
+      $md_current_state = undef;
+      $md_current_mdstat = undef;
     }
 
-    printf "  \${color #98c2c7}%s\$color \${color $color}%s\$color\n",
-      "/dev/$md_current", $md_current_state;
-    if ($print_mdstat) {
-      printf "\n\${color $color}%s\$color",
-        $md_current_mdstat;
+    if ($line =~ /^\s*\d+\s+blocks(?: super [0-9.]+)? (.*)$/) {
+      $md_current_state = $1;
     }
+
+    $md_current_mdstat .= $line;
   }
+  close $fh;
+  &$print_md_current_state();
 }
 
-while (my $line = <$fh>) {
-  next if $line =~ /^Personalities\s*:/xsmi;
-  next if $line =~ /^unused\sdevices\s*:/xsmi;
-
-  if ($line =~ /^(.*) : /) {
-    print_md_current_state();
-
-    $md_current = $1;
-    $md_current_state = undef;
-    $md_current_mdstat = undef;
-  }
-
-  if ($line =~ /^\s*\d+\s+blocks(?: super [0-9.]+)? (.*)$/) {
-    $md_current_state = $1;
-  }
-
-  $md_current_mdstat .= $line;
-}
-close $fh;
-print_md_current_state();
+conky_fs();
+conky_hddtemp();
+conky_mdstat();
 
 # vim:textwidth=120:
