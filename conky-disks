@@ -13,6 +13,7 @@ my @ignoreformats = qw(
                        debugfs securityfs swap iso9660 udf cgroup
                        hugetlbfs mqueue pstore selinuxfs configfs
                       );
+my @ignorepaths = (qr(/var/lib/docker/));
 
 my $color_ok      = "#78af78";
 my $color_warn    = "#ffff00";
@@ -56,6 +57,7 @@ for my $f (@filesystems) {
   my $format = $fs->format($f);
 
   next if grep { /^$format$/xsm } @ignoreformats;
+  next if grep { $mount_point =~ $_ } @ignorepaths;
 
   my $df   = df($mount_point, 1024); # 1k blocks
   my $blocks = $df->{blocks};
